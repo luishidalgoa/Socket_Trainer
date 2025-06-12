@@ -6,7 +6,7 @@ export interface TradeSession {
         [username: string]: {
             socketId: string; // ID del socket del usuario
             role: 'creator' | 'invited'; // Rol del usuario en la sesión
-            trade_status: 'propose_trade' | 'trade_accept'; // Estado del intercambio para este usuario
+            trade_status: 'propose_trade' | 'trade_accept' |'none'; // Estado del intercambio para este usuario
             connected: boolean; // Indica si el usuario está conectado
             offeredCardIds: string | number[]; // IDs de cartas que propone intercambiar
         };
