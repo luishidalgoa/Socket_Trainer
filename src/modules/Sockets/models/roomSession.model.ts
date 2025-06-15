@@ -14,7 +14,7 @@ export interface TradeSession {
 
     // Estado actual de la sesión. Controla la etapa del proceso.
     // Posibles valores: 'waiting', 'active', 'denied'
-    status: 'waiting' | 'active' | 'denied';
+    status: 'waiting' | 'active' | 'denied' | 'closed';
 
     // Timestamp de la última acción, útil para TTL y limpieza de sesiones inactivas
     lastUpdated: Date;

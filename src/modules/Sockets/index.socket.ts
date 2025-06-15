@@ -2,19 +2,28 @@ import {Server} from "socket.io";
 import {handleTradeSocket} from "./trade.socket";
 import {Express} from "express";
 import http from "node:http";
-import log from "../Config/logger";
-import {validateToken_Service} from "../modules/Authorization/services/auth.service";
-import {JWT_TokenError, Token_Expired, Token_Not_Found} from "../Shared/errors/models/errors";
+import log from "../../Config/logger";
+import {validateToken_Service} from "../Authorization/services/auth.service";
+import {JWT_TokenError, Token_Expired, Token_Not_Found} from "../../Shared/errors/models/errors";
 import {JsonWebTokenError, TokenExpiredError} from "jsonwebtoken";
-import {delete_RoomSession} from "./services/trade.service";
-import {checkOnlineStatus, getUserRoles, updateOnlineStatus} from "../modules/User/services/user.service";
+import {
+    delete_RoomSession,
+    get_sessionId_BySocketId,
+    getTradeSession_BySocketId,
+    removeItemFrom_SocketToSessionMap
+} from "./services/trade.service";
+import {
+    checkOnlineStatus,
+    checkSocketIdOnlineStatus, cleanUserOnlineList,
+    getUserRoles,
+    updateOnlineStatus
+} from "../User/services/user.service";
 
 export let io:Server | null = null;
 
-export function setupSockets(app: Express) {
-    const server = http.createServer(app);
+export async function setupSockets(server: http.Server) {
+    await cleanUserOnlineList()
     io = new Server(server, { cors: { origin: '*' } });
-    server.listen(process.env.PORT,()=> log.info((`Servidor Socket.IO escuchando en el puerto ${process.env.PORT}`)));
 
     io.use(async (socket,next)=>{
         try {
@@ -25,6 +34,7 @@ export function setupSockets(app: Express) {
 
             socket.data.user = await validateToken_Service(accessToken)
             socket.data.user.role = await getUserRoles(socket.data.user.username);
+
 
             next()
         }catch (error:any){
@@ -40,20 +50,29 @@ export function setupSockets(app: Express) {
     })
 
     io.on('connection', (socket) => {
-        log.info(`Usuario conectado: ${socket.data.user.username} con id: ${socket.id}`);
-
         secureOn(socket, 'online', () => {
+            log.info(`Usuario conectado: ${socket.data.user.username} con id: ${socket.id}`);
             socket.emit('online', { message: `Usuario ${socket.data.user.username} está en línea` });
-            updateOnlineStatus(socket.data.user.username, { online: true, socketId: socket.id }).then(r => {})
+            updateOnlineStatus(socket.data.user.username, { online: true, socketId: socket.id }).then(()=> {})
         }, { skipCheck: true });
 
         handleTradeSocket(socket);
 
-        socket.on('disconnect', () => {
-            if (delete_RoomSession({socket:socket,socketId:socket.id}, 'disconnect')) {
+        socket.on('disconnect', async () => {
+            const tradeSessionId = get_sessionId_BySocketId(socket.id);
+            if (tradeSessionId) {
+                const session = getTradeSession_BySocketId(socket.id);
+                if (session)
+                    delete_RoomSession({socket:socket,socketId:socket.id}, session)
+
+                removeItemFrom_SocketToSessionMap(socket.id);
                 log.warn(`Trade socket disconnected: ${socket.id}`);
             } else {
-                log.warn(`El socket ${socket.id} se ha desconectado`);
+                const userOnline = await checkSocketIdOnlineStatus(socket.id)
+                if (!userOnline)
+                    return log.warn(`El socket ${socket.id} no está asociado a un usuario conectado`);
+
+                log.warn(`El usuario ${socket.data.user.username} se ha desconectado, socketId: ${socket.id}`);
                 updateOnlineStatus(socket.data.user.username, { socketId: socket.id, online: false }).then(r => {});
             }
         });

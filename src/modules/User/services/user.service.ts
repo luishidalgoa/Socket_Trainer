@@ -1,5 +1,5 @@
 import User_schema, {UsersOnlineModel} from "../../User/models/user.model";
-import {io} from "../../../sockets";
+import {io} from "../../Sockets/index.socket";
 
 export const getUserRoles = async (username: string): Promise<string[]> => {
     const user = await User_schema.findOne(
@@ -37,4 +37,16 @@ export const checkOnlineStatus = async (username: string): Promise<boolean> => {
     }).catch(() => {
         return false;
     });
+}
+/**
+ * Checkea si el SocketId proporcionado pertenece a un usuario conectado
+ */
+export const checkSocketIdOnlineStatus = async (socketId: string): Promise<UsersOnlineModel | null> => {
+    return UsersOnlineModel.findOne<UsersOnlineModel>(
+        {"socketId": socketId, "online": true},
+    );
+}
+
+export const cleanUserOnlineList= async ()=>{
+    await UsersOnlineModel.deleteMany({})
 }
