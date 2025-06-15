@@ -11,7 +11,9 @@ import {
 import {secureOn} from "./index.socket";
 import {checkOnlineStatus} from "../User/services/user.service";
 import UserModel from "../User/models/user.model";
-import {TradeSession} from "./models/roomSession.model";
+import {TradeSession} from "./models/TradeSession.model";
+import {sendNotification} from "../User/services/notification.service";
+import {INotification, NotificationModel} from "../User/models/notification.model";
 
 export const handleTradeSocket = (socket: any) => {
 
@@ -21,7 +23,7 @@ export const handleTradeSocket = (socket: any) => {
         }
     });
 
-    secureOn(socket,'trade:invite', async () => {
+    secureOn(socket,'trade:invite', async ({redirectTo}:{redirectTo?:string}) => {
         const username = socket.data.user.username;
 
         const roomSessionId = uuidv4();
@@ -52,6 +54,14 @@ export const handleTradeSocket = (socket: any) => {
         }else{
             socket.emit('trade:invite', {message: 'Invitación enviada', roomSessionId});
         }
+        const notification:INotification=new NotificationModel({
+            username: invitedUsername,
+            title: `Solicitud de intercambio`,
+            message: `El usuario ${username} te ha invitado a un intercambio, por favor, acepta la invitación`,
+            type: 'trade',
+            redirectTo: `${redirectTo}/${roomSessionId}` || `trade/${roomSessionId}`,
+        })
+        await sendNotification(notification)
     });
 
     secureOn(socket,'trade:accept', ({roomSessionId}: { roomSessionId: string, }) => {
@@ -85,7 +95,7 @@ const createRoomSession = (inviterUsername: string, invitedUsername: string, roo
     result.session=get_RoomSession_By_Username(inviterUsername,{connected: true});
     // si existe una sesión activa con el mismo usuario, se elimina la sesión anterior
     if(result.session){
-        delete_RoomSession({socket:socket,socketId:result.session.users[inviterUsername].socketId}, result.session)
+        delete_RoomSession({socket:socket,socketId:result.session.users[inviterUsername].socketId}, result.session, {disconnect: false});
         result.status = 'already_exist';
     }
 

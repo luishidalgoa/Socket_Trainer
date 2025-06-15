@@ -1,4 +1,4 @@
-import {TradeSession} from "../models/roomSession.model";
+import {TradeSession} from "../models/TradeSession.model";
 import {NOT_FOUND} from "../../../Shared/errors/models/errors";
 import {io} from "../index.socket";
 
@@ -39,8 +39,9 @@ export const removeItemFrom_SocketToSessionMap = (socketId: string): boolean => 
  * Elimina una sesión de intercambio de la sala. solo se puede eliminar si la conexion socket es de una sala de intercambios activa.
  * @param socket {socketId} identifica el socketId de un usuario en especifico y el socket para emitir eventos.
  * @param session
+ * @param options {disconnect} si es true, desconecta el socket del usuario, si es false, solo elimina la sesión de intercambio.
  */
-export const delete_RoomSession = (socket:{socket:any,socketId: string},session:TradeSession):boolean => {
+export const delete_RoomSession = (socket:{socket:any,socketId: string},session:TradeSession,options:{disconnect:boolean}):boolean => {
     let message: string
     switch (session.status){
         case 'closed':
@@ -59,7 +60,9 @@ export const delete_RoomSession = (socket:{socket:any,socketId: string},session:
     socketToSession_Map.forEach((value, key) => {
         if (value === session.roomSessionId) {
             if(io?.sockets.sockets.get(key)?.id) {
-                io?.sockets.sockets.get(key)?.disconnect(true)
+                if (options.disconnect)
+                    io?.sockets.sockets.get(key)?.disconnect(true);
+
                 socketToSession_Map.delete(key);
             }
         }

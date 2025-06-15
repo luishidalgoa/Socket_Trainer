@@ -1,6 +1,5 @@
 import {Server} from "socket.io";
 import {handleTradeSocket} from "./trade.socket";
-import {Express} from "express";
 import http from "node:http";
 import log from "../../Config/logger";
 import {validateToken_Service} from "../Authorization/services/auth.service";
@@ -18,6 +17,7 @@ import {
     getUserRoles,
     updateOnlineStatus
 } from "../User/services/user.service";
+import {getSocketByUsername} from "./services/socket.service";
 
 export let io:Server | null = null;
 
@@ -63,7 +63,7 @@ export async function setupSockets(server: http.Server) {
             if (tradeSessionId) {
                 const session = getTradeSession_BySocketId(socket.id);
                 if (session)
-                    delete_RoomSession({socket:socket,socketId:socket.id}, session)
+                    delete_RoomSession({socket:socket,socketId:socket.id}, session, {disconnect: true});
 
                 removeItemFrom_SocketToSessionMap(socket.id);
                 log.warn(`Trade socket disconnected: ${socket.id}`);

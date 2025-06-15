@@ -26,7 +26,7 @@ export const updateOnlineStatus = async (username: string, option:{socketId:stri
 
 export const checkOnlineStatus = async (username: string): Promise<boolean> => {
     return await UsersOnlineModel.findOne(
-        { "username": username, "online": true },
+        { "username": username, "online": true }, {socketId: 1, online: 1}
     ).then(async (user) => {
         if (!user) return false; // Usuario no encontrado
         if (!io?.sockets.sockets.has(user.socketId)){
